@@ -1,0 +1,32 @@
+# Copy to paper-fetch.toml and fill in your real contact email.
+# The local paper-fetch.toml is ignored by Git.
+mailto = ""
+
+# Optional API credentials.
+openalex_api_key = ""
+s2_api_key = ""
+core_api_key = ""
+
+# Copyright-safety boundary. See COMPLIANCE.md before changing either setting.
+#
+# license_policy:
+#   "strict" - require an explicit open licence or a source that only serves open files
+#   "open"   - the above, plus provider open-access designations (recorded and warned)
+#   "any"    - accept candidates without licence evidence; logs a startup warning
+license_policy = "open"
+
+# Gray sources (Sci-Hub mirrors) redistribute in-copyright works without a licence.
+# Off by default; enabling it logs a startup warning and marks every result "gray".
+allow_scihub = false
+
+timeout_seconds = 45.0
+
+# Optional destination for structured download requests. Relative to this file.
+# download_directory = "downloads"
+
+# Only used when allow_scihub = true.
+# scihub_mirrors = ["https://sci-hub.se"]
+
+# Optional per-host requests per second. Keep this table at the end of the file.
+# [host_rates]
+# "api.openalex.org" = 10.0

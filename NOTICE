@@ -1,0 +1,32 @@
+paper-fetch-mcp-safe
+Copyright (c) 2026 yhwucn12-cell
+
+This product is a derivative of paper-fetch-mcp 0.1.0 (MIT), by the same author.
+
+Changes in this fork, relative to upstream:
+
+  * Added src/paper_fetch_mcp_safe/compliance.py: a pure, testable licence and
+    source policy. Every PDF candidate is evaluated before download and carries a
+    recorded decision (licence, normalised licence, licence class, evidence type,
+    policy version) into the JSON sidecar.
+  * Added the LICENSE_RESTRICTED error code. Refused candidates are reported as
+    such instead of being reported as "no open-access copy".
+  * Changed the default of allow_scihub from true to false. Gray sources are
+    reachable only by explicit opt-in, which logs a startup warning.
+  * Added license_policy with three levels: strict, open (default) and any.
+  * Enforced the policy in the router, in the resolve/download workflow, and in
+    HttpClient.download_pdf, so no download path can skip it.
+  * Added licence information to get_server_status, to minimal resolve output,
+    to download results, and to the batch summary (license_restricted count).
+  * Renamed the distribution to paper-fetch-mcp-safe, the import package to
+    paper_fetch_mcp_safe, the console script to paper-fetch-mcp-safe, the
+    FastMCP server name, the User-Agent string and the PMC id-converter tool id,
+    so this fork and upstream can be installed side by side.
+  * Removed upstream's docs/ research notes, .tmp/ benchmark artifacts and the
+    mirror-specific download run logs. Rewrote the live test script's gray stage
+    as an offline audit stage that asserts the boundary holds.
+
+Third-party services used at runtime (OpenAlex, Crossref, Unpaywall, Semantic
+Scholar, CORE, Europe PMC, PMC, arXiv, HAL, Zenodo, OSF, bioRxiv/medRxiv,
+OpenReview, ACL Anthology, PMLR) are governed by their own terms of use. This
+project only reads their public APIs and the files those APIs designate as open.

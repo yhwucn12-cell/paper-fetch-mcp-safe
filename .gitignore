@@ -1,0 +1,18 @@
+.venv/
+.tmp/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+pytest-cache-files-*/
+*.egg-info/
+.coverage
+dist/
+build/
+*.pdf
+*.pdf.json
+paper-fetch.toml
+downloads/
+
+# Local scratch and credentials must never be committed.
+.env
+*.local.toml

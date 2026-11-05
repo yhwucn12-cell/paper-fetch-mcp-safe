@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel>=0.42"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "paper-fetch-mcp-safe"
+version = "0.2.0"
+description = "MCP service for scholarly metadata search and licence-checked open-access PDF retrieval"
+requires-python = ">=3.11"
+dependencies = [
+  "fastmcp>=3.4,<4",
+  "httpx>=0.28,<1",
+]
+
+[project.optional-dependencies]
+# pypdf backs the independent PDF verification in scripts/paper_download_test.py.
+dev = ["pytest>=8,<10", "pypdf>=4"]
+
+[project.scripts]
+paper-fetch-mcp-safe = "paper_fetch_mcp_safe.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["network: tests requiring live scholarly APIs", "local_subprocess: Windows named-pipe stdio handshake"]
+addopts = "-m 'not network and not local_subprocess'"
