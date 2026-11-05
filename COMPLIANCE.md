@@ -90,8 +90,9 @@ the law where you are and your institution's policy.
 
 ## Provenance of this fork
 
-The upstream project is `paper-fetch-mcp` (v0.1.0), MIT-licensed, by the same author. This
-fork keeps the upstream MIT licence, renames the distribution to
-`paper-fetch-mcp-safe` and the import package to `paper_fetch_mcp_safe` so the two can be
-installed side by side, and drops the upstream's local test artifacts and mirror-specific
-run logs. See `NOTICE` for the list of behavioural changes.
+The local source project, `paper-fetch-mcp` v0.1.0, did not contain a public licence.
+Its author is publishing this fork under the MIT licence in `LICENSE`. The fork renames
+the distribution to `paper-fetch-mcp-safe` and the import package to
+`paper_fetch_mcp_safe` so the two can be installed side by side, and drops the source
+project's local test artifacts and mirror-specific run logs. See `NOTICE` for the list
+of behavioural changes.

@@ -1,7 +1,9 @@
 paper-fetch-mcp-safe
 Copyright (c) 2026 yhwucn12-cell
 
-This product is a derivative of paper-fetch-mcp 0.1.0 (MIT), by the same author.
+This product is a derivative of the author's local paper-fetch-mcp 0.1.0 project. That
+local source did not contain a public licence; the author publishes this fork under the
+MIT licence in LICENSE.
 
 Changes in this fork, relative to upstream:
 
