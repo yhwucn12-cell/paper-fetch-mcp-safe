@@ -2,7 +2,7 @@
 
 MCP 服务：检索论文元数据，解析**有许可依据**的开放 PDF 候选，下载并校验 PDF，同时写入包含来源、版本、许可、许可判定依据、URL 和 SHA-256 的 JSON 记录。
 
-这是 [paper-fetch-mcp](https://github.com/yhwucn12-cell/paper-fetch-mcp-safe) 的版权安全分支：检索能力保留，下载侧增加强制许可边界。边界定义、判定规则与免责范围见 [COMPLIANCE.md](COMPLIANCE.md)，相对上游的行为变更清单见 [NOTICE](NOTICE)。
+这是本地 `paper-fetch-mcp` 项目的版权安全分支：检索能力保留，下载侧增加强制许可边界。边界定义、判定规则与免责范围见 [COMPLIANCE.md](COMPLIANCE.md)，相对原项目的行为变更清单见 [NOTICE](NOTICE)。
 
 ## 版权安全边界（本分支的核心差异）
 
