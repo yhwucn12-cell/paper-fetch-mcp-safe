@@ -1,84 +1,220 @@
 # paper-fetch-mcp-safe
 
-MCP 服务：检索论文元数据，解析**有许可依据**的开放 PDF 候选，下载并校验 PDF，同时写入包含来源、版本、许可、许可判定依据、URL 和 SHA-256 的 JSON 记录。
+[中文](README.md) · [English](README_EN.md)
 
-这是本地 `paper-fetch-mcp` 项目的版权安全分支：检索能力保留，下载侧增加强制许可边界。边界定义、判定规则与免责范围见 [COMPLIANCE.md](COMPLIANCE.md)，相对原项目的行为变更清单见 [NOTICE](NOTICE)。
+[![Tests](https://github.com/yhwucn12-cell/paper-fetch-mcp-safe/actions/workflows/tests.yml/badge.svg)](https://github.com/yhwucn12-cell/paper-fetch-mcp-safe/actions/workflows/tests.yml)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## 版权安全边界（本分支的核心差异）
+一个带**版权与许可边界**的论文检索、解析和开放 PDF 下载 MCP 服务。
 
-每个候选 URL 在**发出请求之前**要过两道独立检查：
+- 搜索 OpenAlex、arXiv、PubMed / Europe PMC
+- 解析 DOI、PMID、PMCID、arXiv、OpenReview、ACL、PMLR、HAL、Zenodo、OSF 标识符
+- 下载前检查开放许可或 OA 依据；默认拒绝无法确认许可的候选
+- 校验 PDF、计算 SHA-256，并生成可审计 JSON sidecar
+- 支持单篇、按标题和最多 500 篇批量下载
 
-1. **来源层级**：只接受 `oa`。`gray`（Sci-Hub 镜像）默认关闭，需显式 `allow_scihub = true` 才会被注册。
-2. **许可依据**，至少满足其一：
-   - 候选自带开放许可（CC0、CC BY、CC BY-SA、CC BY-NC、CC BY-ND、CC BY-NC-SA、CC BY-NC-ND）。各种写法（`"CC BY 4.0"`、`"cc_by"`、`creativecommons.org` URL）统一归一化后记录；
-   - 来源本身只提供公开文件（`arxiv`、`europepmc`、`pmc_cloud`、`osf_preprints`、`zenodo`、`hal`、`preprints`）；
-   - 仅在 `license_policy = "open"` 时，聚合器给出的 OA 标记（`gold`/`green`/`hybrid`/`bronze`/`diamond`），记为 `oa-declared` 并附警告——"能免费读"不等于"可再分发"。
+> 默认不启用 Sci-Hub。完整版权策略与限制见 [COMPLIANCE.md](COMPLIANCE.md)。
 
-OpenAlex、Unpaywall、Semantic Scholar、CORE 是聚合器，**不属于**可信来源：它们只是转发第三方链接，必须自带明确许可或 OA 标记。
+## 快速开始
 
-拒绝是显式的：工具返回 `LICENSE_RESTRICTED` 与具体原因；`resolve` 在 `errors` 中逐条列出被拒候选；`batch` 单独统计 `license_restricted`，不与 `PAYWALL_NO_OA` 混淆。若同时有无关 provider 失败，结论回落到 `PROVIDER_UNAVAILABLE`——检索不完整时不会把拒绝说成最终判定。`search` 结果不会展示下载路径会拒绝的链接。
-
-| `license_policy` | 接受范围 | 适用 |
-|---|---|---|
-| `strict` | 明确开放许可，或可信来源 | 边界最严，忽略 OA 标记；即使 `allow_scihub = true` 也拒绝 gray |
-| `open`（默认） | 上述 + 聚合器 OA 标记（带警告） | 常规科研使用 |
-| `any` | 除 gray 外全部接受 | 仅在自备合法依据时使用 |
-
-策略在三处强制执行，任何路径都无法绕过：`router.resolve_candidates()` 过滤每个 provider 的输出；`ServerState.resolve()/download()` 再过滤记录级候选与延后/gray 轮次；`HttpClient.download_pdf()` 在建立连接前复核（或使用调用方传入的判定）。没有判定就无法写 sidecar，因此磁盘上的每个文件事后都可审计。
-
-## 启动
-
-需要 Python 3.11+。在项目根目录执行：
+### Windows PowerShell
 
 ```powershell
+git clone https://github.com/yhwucn12-cell/paper-fetch-mcp-safe.git
+cd paper-fetch-mcp-safe
 python -m venv .venv
 .venv\Scripts\python.exe -m pip install -e .
 Copy-Item paper-fetch.toml.example paper-fetch.toml
 ```
 
-在 `paper-fetch.toml` 填写 `mailto` 联系邮箱，然后启动：
+### macOS / Linux
+
+```bash
+git clone https://github.com/yhwucn12-cell/paper-fetch-mcp-safe.git
+cd paper-fetch-mcp-safe
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+cp paper-fetch.toml.example paper-fetch.toml
+```
+
+编辑 `paper-fetch.toml`，至少填写联系邮箱：
+
+```toml
+mailto = "you@example.org"
+license_policy = "open"
+allow_scihub = false
+# download_directory = "downloads"
+```
+
+启动服务：
 
 ```powershell
 .venv\Scripts\python.exe -m paper_fetch_mcp_safe.server --config paper-fetch.toml
 ```
 
-`openalex_api_key`、`s2_api_key` 和 `core_api_key` 都是可选项。未配置 CORE key 时，CORE 自动跳过，状态接口会显示 `enabled: false`。`download_directory` 可设置结构化下载请求的默认目录，相对路径以配置文件所在目录为基准。本地配置文件由 Git 忽略。`allow_scihub` 默认为 `false`；设为 `true` 会在启动时打印警告，结果标记为 `gray`。`license_policy` 默认为 `open`；设为 `any` 同样会在启动时警告。`get_server_status().compliance` 会回报当前策略。
+macOS / Linux 使用：
 
-## 工具与标识符
+```bash
+.venv/bin/python -m paper_fetch_mcp_safe.server --config paper-fetch.toml
+```
 
-MCP 只暴露两个工具：`execute_paper_request` 与 `get_server_status`。前者是自然语言经 skill 规范化后的统一入口：`action` 为 `search`、`resolve`、`download` 或 `batch`，检索填写 `query`，按标识符解析或下载填写 `identifiers`。按准确题名下载可填写 `action="download"` 和 `query`；`review_search_results=false` 为默认值，唯一准确匹配会直接下载，无法唯一匹配时返回 `needs_review=true`。工具先校验模板，再调用现有流程；`accepted` 仅表示输入已执行，实际结果在 `result` 中。模板及映射规则见 [paper-fetch-safe skill](skills/paper-fetch-safe/SKILL.md)。解析和下载支持 DOI、PMID、PMCID、arXiv ID，以及下表中的站内标识符。
+## MCP 客户端配置
 
-`verbosity` 默认 `minimal`，只回模型实际需要的字段：`search` 回 `title`/`year`/`doi`/`id`（`id` 可直接回填下一次下载），`resolve` 回候选的 `provider`、`compliance_tier` 与 `license_class`，`batch` 回 `succeeded`/`failed`/`skipped`/`failures`/`license_restricted` 与逐项记录文件 `results_path`（`<directory>/batch-results-<UTC>-<pid>-<n>.json`，原子写入且并发不覆盖；写盘失败时回退为内联 `items` 并附 `note`；命中 gray 源时额外回 `gray` 计数与 `warning`）。单篇 `download` 始终回 `ok`/`path`/`sha256`/`provider`/`compliance_tier`/`license`/`license_class`/`license_evidence`。需要候选 URL、许可或逐项原始记录时传 `verbosity="full"`。错误只回归一化的 `code` 与一行 `message`，上游原文（凭据已脱敏为 `REDACTED`）写入服务日志。
+将下列配置加入支持 stdio MCP 的客户端，并替换为实际绝对路径：
 
-下载侧的两条传输硬边界：单个响应超过 200 MiB（`http.MAX_DOWNLOAD_BYTES`，含 `Content-Length` 预检与流式累计）视为 `DOWNLOAD_CORRUPT` 并清理临时文件；指向本机或链路本地地址（loopback、`169.254.0.0/16`、`.localhost`）的候选 URL 在发请求前即被拒，因为候选 URL 来自第三方元数据。RFC1918 等私有段**刻意放行**——机构镜像、企业代理与 TUN/VPN 解析常落在那里。
+```json
+{
+  "mcpServers": {
+    "paper-fetch-safe": {
+      "command": "D:/path/to/paper-fetch-mcp-safe/.venv/Scripts/python.exe",
+      "args": [
+        "-m",
+        "paper_fetch_mcp_safe.server",
+        "--config",
+        "D:/path/to/paper-fetch-mcp-safe/paper-fetch.toml"
+      ]
+    }
+  }
+}
+```
 
-| 输入示例 | 来源 |
+服务提供两个工具：
+
+| 工具 | 用途 |
 |---|---|
-| `10.1080/00220388.2011.561330`、`hal:hal-00721635` | HAL 主文件 |
-| `10.5281/zenodo.1062358`、`zenodo:1062358` | Zenodo 公开论文记录 |
-| `osf:hqb2p_v1`、`https://osf.io/preprints/socarxiv/hqb2p_v1/` | OSF Preprints 主文件 |
-| `PMC10009416`、可映射到 PMCID 的 DOI | Europe PMC、PMC Cloud |
+| `execute_paper_request` | 搜索、解析、单篇下载和批量下载 |
+| `get_server_status` | 查看 provider、限速状态和当前许可策略 |
 
-HAL、Zenodo、OSF 和 PMC Cloud 目前用于**精确标识符解析与下载**；自由文本搜索仍由 OpenAlex、arXiv 和 PubMed/Europe PMC 提供。Zenodo 的通用 DOI 搜索只接受 DOI 精确匹配或明确关联的论文记录，避免把数据集附件误当论文。下载器会拒绝 HTML 等非 PDF 响应。
+## 配置
 
-## 验证
+| 配置项 | 默认值 | 说明 |
+|---|---:|---|
+| `mailto` | 必填 | 提交给学术 API 的联系邮箱 |
+| `download_directory` | 未设置 | 默认下载目录；也可在请求中传入 `directory` |
+| `license_policy` | `open` | `strict`、`open` 或 `any` |
+| `allow_scihub` | `false` | 启用 gray 来源；启动时会警告 |
+| `openalex_api_key` | 空 | 可选 OpenAlex API key |
+| `s2_api_key` | 空 | 可选 Semantic Scholar API key |
+| `core_api_key` | 空 | 可选 CORE API key；未配置时自动跳过 CORE |
+| `timeout_seconds` | `45.0` | HTTP 超时时间 |
+| `host_rates` | 内置值 | 按主机设置请求速率 |
+
+许可策略：
+
+| 策略 | 接受范围 |
+|---|---|
+| `strict` | 明确开放许可或可信开放来源；始终拒绝 gray |
+| `open` | 默认；在 `strict` 基础上接受 provider 的 OA 标记并附警告 |
+| `any` | 接受无许可证据的非 gray 候选；仅在自备合法依据时使用 |
+
+## 用法
+
+`execute_paper_request` 接受结构化参数。`accepted=true` 只表示请求已执行，实际结果位于 `result`。
+
+### 搜索论文
+
+```json
+{
+  "action": "search",
+  "query": "water oxidation catalyst",
+  "source": "auto",
+  "limit": 5,
+  "year_min": 2022
+}
+```
+
+### 检查开放 PDF
+
+```json
+{
+  "action": "resolve",
+  "identifiers": ["10.1021/jacs.4c00478"],
+  "verbosity": "full"
+}
+```
+
+### 下载单篇论文
+
+```json
+{
+  "action": "download",
+  "identifiers": ["arxiv:1706.03762"],
+  "directory": "D:/papers"
+}
+```
+
+也可按准确标题下载：
+
+```json
+{
+  "action": "download",
+  "query": "A Precisely Specified Article Title",
+  "directory": "D:/papers"
+}
+```
+
+唯一准确匹配会直接下载；无法唯一匹配时返回 `needs_review=true`。
+
+### 批量下载
+
+```json
+{
+  "action": "batch",
+  "identifiers": [
+    "10.1021/jacs.4c00478",
+    "PMC10009416",
+    "arxiv:1706.03762"
+  ],
+  "directory": "D:/papers",
+  "concurrency": 4
+}
+```
+
+批量请求支持 1–500 个标识符。默认返回摘要，逐项结果写入下载目录下的 `batch-results-*.json`。
+
+## 下载结果
+
+每个成功下载的 PDF 都会生成同名 `.pdf.json` sidecar，包含：
+
+- 来源 provider、原始 URL 和文献标识符
+- 原始及归一化许可、许可类别和判定依据
+- 当前策略版本、PDF 版本、时间戳和 SHA-256
+
+常见错误：
+
+| 错误码 | 含义 |
+|---|---|
+| `PAYWALL_NO_OA` | 未找到开放 PDF 候选 |
+| `LICENSE_RESTRICTED` | 找到链接，但没有足够许可依据或被策略拒绝 |
+| `PROVIDER_UNAVAILABLE` | provider 请求失败，结论不完整 |
+| `RATE_LIMITED` | provider 限流；可能包含 `retry_after` |
+| `DOWNLOAD_CORRUPT` | 响应不是有效 PDF 或超过 200 MiB |
+
+## 测试
 
 ```powershell
-.venv\Scripts\python.exe -m pytest -q --basetemp=.tmp\pytest-local
-.venv\Scripts\python.exe -m pytest -m local_subprocess -q --basetemp=.tmp\pytest-stdio
-.venv\Scripts\python.exe -m pytest -m network -q --basetemp=.tmp\pytest-network
+.venv\Scripts\python.exe -m pytest -q
+.venv\Scripts\python.exe -m pytest -q -m local_subprocess
 .venv\Scripts\python.exe scripts\paper_download_test.py audit
+```
+
+实时 provider 测试：
+
+```powershell
+.venv\Scripts\python.exe -m pytest -q -m network
 .venv\Scripts\python.exe scripts\paper_download_test.py search resolve download batch
 ```
 
-`tests/test_compliance.py` 是边界的契约：许可写法归一化、三类许可依据、三档策略、gray 拒绝、下载器零请求拒绝、sidecar 字段、批量计数。它完全离线，不需要网络或 API key。
+## 更多文档
 
-`scripts/paper_download_test.py` 的 `audit` 阶段同样离线，断言"无许可候选被拒且不落盘、gray 候选被拒、默认注册表不含 gray provider"。`search`/`resolve`/`download`/`batch` 阶段通过统一的 `execute_request` 入口跑真实站点，并对每个 PDF 独立校验 `%PDF` 头、SHA-256（返回值、sidecar、重算三方一致）、pypdf 页数、标题文本，以及 sidecar 中是否存在可接受的 `license_evidence`。结果写入 Git 忽略的 `.tmp/lit-download-test/`。
+- [版权与许可边界](COMPLIANCE.md)
+- [相对原项目的变更](NOTICE)
+- [MCP skill](skills/paper-fetch-safe/SKILL.md)
+- [来源和限速](skills/paper-fetch-safe/references/channels.md)
+- [错误处理](skills/paper-fetch-safe/references/errors.md)
 
-实时测试依赖站点和本机网络；OSF 的文件存储链路可能间歇性 TLS/超时，测试会将 API 不可用标记为跳过。
+## 许可证
 
-## 许可
-
-本仓库以 MIT 许可发布，见 [LICENSE](LICENSE)。运行时调用的第三方服务（OpenAlex、Crossref、Unpaywall、Semantic Scholar、CORE、Europe PMC、PMC、arXiv、HAL、Zenodo、OSF、bioRxiv/medRxiv、OpenReview、ACL Anthology、PMLR）各自受其服务条款约束；本项目只读取其公开 API 以及这些 API 指明为开放的文件。
-
-本软件不构成法律意见。CC BY-NC 限制商业使用、CC BY-ND 限制演绎、bronze OA 可能只允许阅读；工具会给出警告，但判断由使用者负责。
+代码以 [MIT License](LICENSE) 发布。第三方论文与 API 仍受各自许可和服务条款约束；本软件不构成法律意见。
